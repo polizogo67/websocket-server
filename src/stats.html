@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ws-relay stats</title>
+<style>
+  :root { --bg: #fafaf9; --fg: #1c1917; --muted: #78716c; --card: #fff; --line: #e7e5e4; --accent: #2563eb; --bad: #dc2626; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0c0a09; --fg: #f5f5f4; --muted: #a8a29e; --card: #1c1917; --line: #292524; --accent: #60a5fa; --bad: #f87171; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px 16px; background: var(--bg); color: var(--fg);
+         font: 15px/1.4 system-ui, -apple-system, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+  .tile { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px; }
+  .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+  .value { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; margin-top: 4px; }
+  .rate { color: var(--accent); }
+  .bad { color: var(--bad); }
+  .down .value { opacity: .4; }
+</style>
+</head>
+<body>
+<main>
+  <h1>ws-relay</h1>
+  <div class="sub" id="status">connecting…</div>
+  <div class="grid" id="grid">
+    <div class="tile"><div class="label">Clients</div><div class="value" id="clients">–</div></div>
+    <div class="tile"><div class="label">Topics</div><div class="value" id="topics">–</div></div>
+    <div class="tile"><div class="label">Msgs in / s</div><div class="value rate" id="in_rate">–</div></div>
+    <div class="tile"><div class="label">Msgs out / s</div><div class="value rate" id="out_rate">–</div></div>
+    <div class="tile"><div class="label">Bytes in / s</div><div class="value rate" id="bytes_rate">–</div></div>
+    <div class="tile"><div class="label">Msgs in total</div><div class="value" id="messages_in">–</div></div>
+    <div class="tile"><div class="label">Msgs out total</div><div class="value" id="messages_out">–</div></div>
+    <div class="tile"><div class="label">Connections</div><div class="value" id="connections_total">–</div></div>
+    <div class="tile"><div class="label">Slow dropped</div><div class="value" id="slow_clients_dropped">–</div></div>
+  </div>
+</main>
+<script>
+  const $ = (id) => document.getElementById(id);
+  const num = (n) => n.toLocaleString();
+  const bytes = (n) => n < 1024 ? n.toFixed(0) + ' B' : n < 1048576 ? (n / 1024).toFixed(1) + ' KiB' : (n / 1048576).toFixed(1) + ' MiB';
+  const uptime = (s) => { const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+                          return (d ? d + 'd ' : '') + (h ? h + 'h ' : '') + m + 'm ' + (s % 60) + 's'; };
+  let prev = null, prevAt = 0;
+  async function tick() {
+    try {
+      const s = await (await fetch('/stats.json', { cache: 'no-store' })).json();
+      const now = performance.now();
+      for (const k of ['clients', 'topics', 'messages_in', 'messages_out', 'connections_total', 'slow_clients_dropped']) $(k).textContent = num(s[k]);
+      $('slow_clients_dropped').classList.toggle('bad', s.slow_clients_dropped > 0);
+      if (prev) {
+        const dt = (now - prevAt) / 1000;
+        $('in_rate').textContent = num(Math.round((s.messages_in - prev.messages_in) / dt));
+        $('out_rate').textContent = num(Math.round((s.messages_out - prev.messages_out) / dt));
+        $('bytes_rate').textContent = bytes((s.bytes_in - prev.bytes_in) / dt);
+      }
+      prev = s; prevAt = now;
+      $('status').textContent = 'up ' + uptime(s.uptime_secs);
+      $('grid').classList.remove('down');
+    } catch {
+      $('status').textContent = 'relay unreachable';
+      $('grid').classList.add('down');
+      prev = null;
+    }
+  }
+  tick();
+  setInterval(tick, 1000);
+</script>
+</body>
+</html>
