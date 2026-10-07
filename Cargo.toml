@@ -3,7 +3,7 @@ name = "ws-relay"
 version = "0.2.0"
 edition = "2024"
 description = "Low-footprint WebSocket fan-out relay"
-license-file = "LICENSE"
+license = "MIT OR Apache-2.0"
 
 [features]
 default = ["metrics"]
