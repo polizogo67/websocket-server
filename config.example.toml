@@ -1,0 +1,46 @@
+# ws-relay configuration. Every key is optional; CLI flags override these.
+
+host = "0.0.0.0"
+port = 8765
+
+# Every path at or under this prefix is its own isolated topic:
+#   /rebroadcast, /rebroadcast/room1, /rebroadcast/app/roomN, ...
+# Anything else is rejected with 404. Use "/" to make every path a topic.
+prefix = "/rebroadcast"
+
+# Messages buffered per topic. A client that falls further behind than this is
+# disconnected (close code 1013) so it can't slow others. The buffer is
+# allocated when a topic opens: roughly 32 bytes x channel_capacity per topic.
+channel_capacity = 512
+
+# Concurrently live topics. New topics beyond this are refused with 503;
+# joining an existing topic always works. A topic is freed when its last
+# client leaves.
+max_topics = 1024
+
+# Largest message a client may send, in bytes.
+max_message_size = 1048576
+
+# Drop a client whose socket blocks a write for this long.
+write_timeout_ms = 10000
+
+# Per-connection buffers. The read buffer is allocated up front for every
+# client, so it dominates memory per connection. Raise for few clients with
+# large/high-rate messages; keep small for many clients.
+read_buffer_size = 4096
+write_buffer_size = 16384
+
+# Health/metrics/stats HTTP endpoint (requires the default `metrics` feature).
+# Served on the same host as the WebSocket listener, so with host = "0.0.0.0"
+# it is reachable at http://<this machine>:9100/.
+metrics_port = 9100
+# Full host:port override, e.g. to keep stats local-only on a public relay:
+# metrics_addr = "127.0.0.1:9100"
+
+# Whether senders receive their own messages. Each client can override this
+# by connecting with ?echo=true or ?echo=false, e.g.
+#   ws://host:8765/rebroadcast/room1?echo=false
+echo = true
+
+# Log every connect/disconnect.
+verbose = false
